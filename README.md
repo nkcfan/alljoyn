@@ -2,7 +2,7 @@
 
 ## Installation
 
-`npm install alljoyn`
+`npm install https://github.com/nkcfan/alljoyn/tarball/master`
 
 ## Usage
 
