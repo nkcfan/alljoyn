@@ -50,6 +50,7 @@ void BusConnection::Init () {
   NODE_SET_PROTOTYPE_METHOD(tpl, "connect", BusConnection::Connect);
   NODE_SET_PROTOTYPE_METHOD(tpl, "disconnect", BusConnection::Disconnect);
   NODE_SET_PROTOTYPE_METHOD(tpl, "createInterface", BusConnection::CreateInterface);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "deleteInterface", BusConnection::DeleteInterface);
   NODE_SET_PROTOTYPE_METHOD(tpl, "getInterface", BusConnection::GetInterface);
   NODE_SET_PROTOTYPE_METHOD(tpl, "registerBusListener", BusConnection::RegisterBusListener);
   NODE_SET_PROTOTYPE_METHOD(tpl, "registerBusObject", BusConnection::RegisterBusObject);
@@ -57,8 +58,11 @@ void BusConnection::Init () {
   NODE_SET_PROTOTYPE_METHOD(tpl, "findAdvertisedName", BusConnection::FindAdvertisedName);
   NODE_SET_PROTOTYPE_METHOD(tpl, "joinSession", BusConnection::JoinSession);
   NODE_SET_PROTOTYPE_METHOD(tpl, "bindSessionPort", BusConnection::BindSessionPort);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "unbindSessionPort", BusConnection::UnbindSessionPort);
   NODE_SET_PROTOTYPE_METHOD(tpl, "requestName", BusConnection::RequestName);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "releaseName", BusConnection::ReleaseName);
   NODE_SET_PROTOTYPE_METHOD(tpl, "advertiseName", BusConnection::AdvertiseName);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "cancelAdvertiseName", BusConnection::CancelAdvertiseName);
   NODE_SET_PROTOTYPE_METHOD(tpl, "registerSignalHandler", BusConnection::RegisterSignalHandler);
 }
 
@@ -68,7 +72,9 @@ NAN_METHOD(BusConnection::New) {
   if (args.Length() == 0 || !args[0]->IsString())
     return NanThrowError("constructor requires an applicationName string argument");
 
-  BusConnection* obj = new BusConnection(strdup(*NanUtf8String(args[0])), true, 4);
+  char *s = strdup(*NanUtf8String(args[0]));
+  BusConnection* obj = new BusConnection(s, true, 4);
+  free(s);
   obj->Wrap(args.This());
 
   NanReturnValue(args.This());
@@ -129,7 +135,19 @@ NAN_METHOD(BusConnection::CreateInterface) {
   } else {
       printf("Failed to create interface \"%s\" (%s)\n", name, QCC_StatusText(status));
   }
+  free(name);
+  
+  NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
+}
 
+NAN_METHOD(BusConnection::DeleteInterface) {
+  NanScope();
+  if (args.Length() == 0)
+    return NanThrowError("DeleteInterface requires an InterfaceDescription argument");
+  
+  BusConnection* connection = node::ObjectWrap::Unwrap<BusConnection>(args.This());
+  InterfaceWrapper* interface = node::ObjectWrap::Unwrap<InterfaceWrapper>(args[0].As<v8::Object>());
+  QStatus status = connection->bus->DeleteInterface(*(interface->interface));
   NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
 }
 
@@ -195,7 +213,9 @@ NAN_METHOD(BusConnection::FindAdvertisedName) {
     return NanThrowError("FindAdvertisedName requires a namePrefix string argument");
 
   BusConnection* connection = node::ObjectWrap::Unwrap<BusConnection>(args.This());
-  QStatus status = connection->bus->FindAdvertisedName(strdup(*NanUtf8String(args[0])));
+  char *s = strdup(*NanUtf8String(args[0]));
+  QStatus status = connection->bus->FindAdvertisedName(s);
+  free(s);
   NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
 }
 
@@ -211,7 +231,9 @@ NAN_METHOD(BusConnection::JoinSession) {
   //   SessionPortListenerWrapper* wrapper = node::ObjectWrap::Unwrap<SessionPortListenerWrapper>(args[2].As<v8::Object>());
   //   QStatus status = connection->bus->JoinSession(*NanUtf8String(args[0]), args[1]->IntegerValue(), *(wrapper->listener), args[1]->IntegerValue(), opts);
   // }else{
-  connection->bus->JoinSession(strdup(*NanUtf8String(args[0])), static_cast<ajn::SessionPort>(args[1]->Int32Value()), NULL, sessionId, opts);
+  char *s = strdup(*NanUtf8String(args[0]));
+  connection->bus->JoinSession(s, static_cast<ajn::SessionPort>(args[1]->Int32Value()), NULL, sessionId, opts);
+  free(s);
   // }
 
   NanReturnValue(NanNew<v8::Integer>(static_cast<int>(sessionId)));
@@ -231,13 +253,39 @@ NAN_METHOD(BusConnection::BindSessionPort) {
   NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
 }
 
+NAN_METHOD(BusConnection::UnbindSessionPort) {
+  NanScope();
+  if (args.Length() == 0 || !args[0]->IsNumber())
+    return NanThrowError("UnbindSessionPort requires a sessionPort number");
+
+  BusConnection* connection = node::ObjectWrap::Unwrap<BusConnection>(args.This());
+  ajn::SessionPort port = static_cast<ajn::SessionPort>(args[0]->Int32Value());
+  QStatus status = connection->bus->UnbindSessionPort(port);
+
+  NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
+}
+
 NAN_METHOD(BusConnection::RequestName) {
   NanScope();
   if (args.Length() == 0 || !args[0]->IsString())
     return NanThrowError("RequestName requires a requestedName string argument");
 
   BusConnection* connection = node::ObjectWrap::Unwrap<BusConnection>(args.This());
-  QStatus status = connection->bus->RequestName(strdup(*NanUtf8String(args[0])), DBUS_NAME_FLAG_DO_NOT_QUEUE);
+  char *name = strdup(*NanUtf8String(args[0]));
+  QStatus status = connection->bus->RequestName(name, DBUS_NAME_FLAG_DO_NOT_QUEUE);
+  free(name);
+  NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
+}
+
+NAN_METHOD(BusConnection::ReleaseName) {
+  NanScope();
+  if (args.Length() == 0 || !args[0]->IsString())
+    return NanThrowError("ReleaseName requires a requestedName string argument");
+
+  BusConnection* connection = node::ObjectWrap::Unwrap<BusConnection>(args.This());
+  char *name = strdup(*NanUtf8String(args[0]));
+  QStatus status = connection->bus->ReleaseName(name);
+  free(name);
   NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
 }
 
@@ -247,7 +295,21 @@ NAN_METHOD(BusConnection::AdvertiseName) {
     return NanThrowError("AdvertiseName requires a name string argument");
 
   BusConnection* connection = node::ObjectWrap::Unwrap<BusConnection>(args.This());
-  QStatus status = connection->bus->AdvertiseName(strdup(*NanUtf8String(args[0])), ajn::TRANSPORT_ANY);
+  char *name = strdup(*NanUtf8String(args[0]));
+  QStatus status = connection->bus->AdvertiseName(name, ajn::TRANSPORT_ANY);
+  free(name);
+  NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
+}
+
+NAN_METHOD(BusConnection::CancelAdvertiseName) {
+  NanScope();
+  if (args.Length() == 0 || !args[0]->IsString())
+    return NanThrowError("CancelAdvertiseName requires a name string argument");
+
+  BusConnection* connection = node::ObjectWrap::Unwrap<BusConnection>(args.This());
+  char *name = strdup(*NanUtf8String(args[0]));
+  QStatus status = connection->bus->CancelAdvertiseName(name, ajn::TRANSPORT_ANY);
+  free(name);
   NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
 }
 
@@ -265,7 +327,9 @@ NAN_METHOD(BusConnection::RegisterSignalHandler) {
   SignalHandlerImpl* signalHandler = new SignalHandlerImpl(callback);
   QStatus status = ER_OK;
   if(args.Length() == 5){
-    status = connection->bus->RegisterSignalHandler(signalHandler, static_cast<ajn::MessageReceiver::SignalHandler>(&SignalHandlerImpl::Signal), signalMember, strdup(*NanUtf8String(args[4])));
+    char *s = strdup(*NanUtf8String(args[4]));
+    status = connection->bus->RegisterSignalHandler(signalHandler, static_cast<ajn::MessageReceiver::SignalHandler>(&SignalHandlerImpl::Signal), signalMember, s);
+    free(s);
   }else{
     status = connection->bus->RegisterSignalHandler(signalHandler, static_cast<ajn::MessageReceiver::SignalHandler>(&SignalHandlerImpl::Signal), signalMember, NULL);
   }
