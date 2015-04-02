@@ -19,14 +19,19 @@ class BusConnection : public node::ObjectWrap {
     static NAN_METHOD(Connect);
     static NAN_METHOD(Disconnect);
     static NAN_METHOD(CreateInterface);
+    static NAN_METHOD(DeleteInterface);
     static NAN_METHOD(GetInterface);
     static NAN_METHOD(RegisterBusListener);
     static NAN_METHOD(RegisterBusObject);
+    static NAN_METHOD(UnregisterBusObject);
     static NAN_METHOD(FindAdvertisedName);
     static NAN_METHOD(JoinSession);
     static NAN_METHOD(BindSessionPort);
+    static NAN_METHOD(UnbindSessionPort);
     static NAN_METHOD(RequestName);
+    static NAN_METHOD(ReleaseName);
     static NAN_METHOD(AdvertiseName);
+    static NAN_METHOD(CancelAdvertiseName);
     static NAN_METHOD(RegisterSignalHandler);
 
   public:
